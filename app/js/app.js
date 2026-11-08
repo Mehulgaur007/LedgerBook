@@ -38,6 +38,13 @@ function words(n){n=Math.round(n);if(!n)return'Zero';let s='';const cr=Math.floo
 const PUR={gold:[['91.6','22K'],['99.9','24K'],['83.3','20K'],['75','18K']],silver:[['92.5','925'],['80','80%'],['99.9','999'],['70','70%'],['60','60%']]};
 const purLabel=(m,p)=>(PUR[m].find(x=>+x[0]===+p)||[0,p+'%'])[1];
 
+/* ======================= phone app (Android) helpers ======================= */
+const NATIVE=()=>{try{return!!(window.Capacitor&&Capacitor.isNativePlatform&&Capacitor.isNativePlatform())}catch(e){return false}};
+const CP=n=>{try{return window.Capacitor&&Capacitor.Plugins&&Capacitor.Plugins[n]}catch(e){return null}};
+function openExt(u){if(NATIVE()){location.href=u}else window.open(u,'_blank','noopener')}
+document.addEventListener('click',e=>{if(!NATIVE())return;const a=e.target.closest&&e.target.closest('a[href]');if(!a)return;const h=a.getAttribute('href');if(/^(https?:|tel:|mailto:)/.test(h)){e.preventDefault();openExt(h)}},true);
+async function shareText(t){const S=CP('Share');if(NATIVE()&&S){try{await S.share({title:db.settings.biz,text:t})}catch(e){}}else if(navigator.share){try{await navigator.share({text:t})}catch(e){}}else openExt('https://wa.me/?text='+encodeURIComponent(t))}
+let shareBuf='';
 /* ======================= icons ======================= */
 const IC={home:'<path d="M4 11l8-7 8 7v9h-5v-6H9v6H4z"/>',doc:'<path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4M9 12h6M9 16h6"/>',users:'<circle cx="12" cy="8" r="3"/><path d="M5 20a7 7 0 0114 0"/><path d="M3 17a4 4 0 014-3M21 17a4 4 0 00-4-3"/>',
 cash:'<rect x="3" y="6" width="18" height="12" rx="2"/><circle cx="12" cy="12" r="3"/><path d="M6 9v6M18 9v6"/>',card:'<rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18M7 15h4"/>',chat:'<path d="M4 5h16v11H9l-5 4z"/><path d="M8 9h8M8 12h5"/>',
@@ -149,7 +156,9 @@ async function lockNow(){closeModal();if(SECURE()){await Store.lock();db=blank()
 function fix(d){const b=blank();for(const k in b)if(d[k]===undefined)d[k]=b[k];d.settings={...DEF,...d.settings};return d}
 
 /* ---------- backup / restore ---------- */
-async function doBackup(){const t=await Store.backupText(db),a=document.createElement('a');a.href=URL.createObjectURL(new Blob([t],{type:'application/json'}));a.download='pawnledger-backup-'+today()+(SECURE()?'.enc':'.json');document.body.appendChild(a);a.click();a.remove();toast('Backup saved')}
+async function doBackup(){const t=await Store.backupText(db),nm='pawnledger-backup-'+today()+(SECURE()?'.enc':'.json');
+  if(NATIVE()&&CP('Filesystem')&&CP('Share')){try{const r=await CP('Filesystem').writeFile({path:nm,data:t,directory:'CACHE',encoding:'utf8'});await CP('Share').share({title:'Pawn Ledger backup',text:'Pawn Ledger backup '+today(),files:[r.uri]});toast('Backup ready – save it to Drive or WhatsApp')}catch(e){if(!/cancel/i.test(String(e&&e.message)))alert('Could not create the backup: '+(e&&e.message||e))}return}
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([t],{type:'application/json'}));a.download='pawnledger-backup-'+today()+(SECURE()?'.enc':'.json');document.body.appendChild(a);a.click();a.remove();toast('Backup saved')}
 function doRestore(inp){const fl=inp.files[0];if(!fl)return;const r=new FileReader();r.onload=async()=>{try{let d;try{d=await Store.readBackup(r.result)}catch(e){const pw=prompt('This backup was made with a different password. Enter that password:');d=await Store.readBackup(r.result,pw)}
   if(!d||!d.loans||!d.customers)throw 0;if(!confirm('Replace all current data with this backup?'))return;db=fix(d);save();toast('Backup restored');go('dash')}catch(e){alert('This is not a valid Pawn Ledger backup (or the password is wrong).')}};r.readAsText(fl);inp.value=''}
 
@@ -356,8 +365,8 @@ V.messages=()=>{const R=db.loans.filter(needsRem).sort((a,b)=>sinceInt(b)-sinceI
   ${db.customers.length?`<div class="tw"><table><thead><tr><th style="width:40px"></th><th>Customer</th><th>Phone</th><th>Active pledges</th><th>Send</th></tr></thead><tbody>${db.customers.map(c=>`<tr><td><input type="checkbox" style="width:18px;height:18px" ${offerSel[c.id]?'checked':''} onchange="offerSel['${c.id}']=this.checked"></td><td class="b">${E(c.name)}</td><td>${E(c.phone)}</td><td>${db.loans.filter(l=>l.custId===c.id&&l.status==='active').length}</td><td>${c.phone?`<button class="btn wa sm" onclick="sendOffer('${c.id}')">${ico('chat')}WhatsApp</button>`:''}</td></tr>`).join('')}</tbody></table></div>
   <button class="btn wa" style="margin-top:14px" onclick="sendSelected()">${ico('chat')}Send to selected one by one</button><div class="hint">WhatsApp opens a chat for each customer with the message ready — tap send in WhatsApp, then come back for the next.</div>`:'<p class="mu">Add customers first.</p>'}</div></div>`}`};
 function copyMsg(id){const t=$('#'+id);t.select();const ok=()=>toast('Message copied');if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(t.value).then(ok,()=>{document.execCommand('copy');ok()});else{document.execCommand('copy');ok()}}
-function sendWa(ph,id){window.open('https://wa.me/91'+ph+'?text='+encodeURIComponent($('#'+id).value),'_blank','noopener')}
-function sendOffer(cid){const c=C(cid);window.open(wa(c.phone,fillC(val('m-offer'),c)),'_blank','noopener')}
+function sendWa(ph,id){openExt('https://wa.me/91'+ph+'?text='+encodeURIComponent($('#'+id).value))}
+function sendOffer(cid){const c=C(cid);openExt(wa(c.phone,fillC(val('m-offer'),c)))}
 let queue=[];function sendSelected(){queue=db.customers.filter(c=>offerSel[c.id]&&c.phone);if(!queue.length)return toast('Select at least one customer');nextQ()}
 function nextQ(){const c=queue.shift();if(!c){toast('All selected customers done');closeModal();return}sendOffer(c.id);
  modal('Sending offers',`<p>Opened WhatsApp for <b>${E(c.name)}</b>. Send it there, then come back.</p><p class="mu">${queue.length} left.</p>`,`<button class="btn s" onclick="queue=[];closeModal()">Stop</button>${queue.length?`<button class="btn wa" onclick="nextQ()">Next: ${E(queue[0].name)}</button>`:`<button class="btn" onclick="closeModal()">Done</button>`}`)}
@@ -381,7 +390,7 @@ function rpRemove(id){if(!confirm('Remove this repledge record? Its money entrie
 /* ---------- daily report ---------- */
 V.daily=()=>{const d=dsel||today(),R=entries().filter(e=>e.date===d).reverse(),tin=R.filter(e=>e.amt>0).reduce((a,e)=>a+e.amt,0),tout=R.filter(e=>e.amt<0).reduce((a,e)=>a-e.amt,0);
  let intr=0,np=0;db.loans.forEach(l=>{if(l.date===d)np++;l.payments.forEach(p=>{if(p.date===d)intr+=Math.max(0,p.interest-(p.discount||0))})});
- return`<div class="ph"><h1 class="pg">Daily Report</h1><div class="btns np"><button class="btn s sm" onclick="dsel=addDays('${d}',-1);render()">‹ Prev</button><input type="date" value="${d}" style="width:auto;height:36px" onchange="dsel=this.value;render()"><button class="btn s sm" onclick="dsel=addDays('${d}',1);render()">Next ›</button><button class="btn sm" onclick="window.print()">${ico('print')}Print</button></div></div>
+ return`<div class="ph"><h1 class="pg">Daily Report</h1><div class="btns np"><button class="btn s sm" onclick="dsel=addDays('${d}',-1);render()">‹ Prev</button><input type="date" value="${d}" style="width:auto;height:36px" onchange="dsel=this.value;render()"><button class="btn s sm" onclick="dsel=addDays('${d}',1);render()">Next ›</button>${NATIVE()?'':`<button class="btn sm" onclick="window.print()">${ico('print')}Print</button>`}</div></div>
  <div class="sub" style="margin:-12px 0 18px">${fdt(d)}</div>
  <div class="stats">${stat('Money In',rs(tin),'dn','gr')}${stat('Money Out',rs(tout),'up','rd')}${stat('Net',(tin-tout<0?'−':'')+rs(Math.abs(tin-tout)),'cash','or')}${stat('Interest Earned',rs(intr),'cash','gr')}${stat('New Pledges',np,'doc','vi')}</div>
  <div class="panel"><div class="panel-h"><h2>Entries</h2></div>${R.length?R.map(e=>`<div class="lrow"><div class="lic ${e.amt>=0?'in':'out'}">${ico(e.amt>=0?'dn':'up')}</div><div><div class="t">${E(e.t)}</div><small>${E(A(e.acct).name)}${e.s?' · '+E(e.s):''}</small></div><div class="amt ${e.amt>=0?'gr':'rd'}">${e.amt>=0?'+':'−'}${rs(Math.abs(e.amt))}</div></div>`).join(''):'<div class="empty">No entries on this day.</div>'}</div>`};
@@ -401,7 +410,7 @@ function billDoc(k,l,p){const s=db.settings,cu=C(l.custId),head=`<div style="tex
   <div class="bfoot"><span>${p.release?'Pledge closed':'Due: '+fdn(l.due)}</span><span>Net Balance</span><div class="mdue"><span>Principal Due</span><b>₹ ${f(p.release?0:a.principal)}</b></div></div>${sig}</div>`}
 V.doc=()=>{const l=L(arg.id),p=arg.p?l.payments.find(x=>x.id===arg.p):null,cu=C(l.custId);
  const txt=arg.k==='loan'?`${db.settings.biz}\nPledge Estimate ${l.no} (${fdt(l.date)})\n${cu.name}\nArticles: ${l.items.map(i=>i.desc+' '+wt(i.net)).join(', ')}\nLoan: ${rs(l.amount)} @ ${l.roi}% p.m.\nDue: ${fdt(l.due)}\n\nThank you!`:`${db.settings.biz}\n${p.release?'Redemption':'Payment'} ${p.rno} (${fdt(p.date)})\nPledge ${l.no} – ${cu.name}\nReceived: ${rs(p.amount)} (Interest ${rs(p.interest)}, Principal ${rs(p.principal)})\n${p.release?'Pledge closed. Articles returned.':'Balance principal: '+rs(calc(l,p.date).principal)}\n\nThank you!`;
- return`<div class="btns np" style="margin-bottom:16px"><button class="btn" onclick="window.print()">${ico('print')}Print</button>${cu.phone?`<a class="btn wa" href="${wa(cu.phone,txt)}" target="_blank" rel="noopener">${ico('chat')}Send on WhatsApp</a>`:''}<button class="btn s" onclick="go('pledge','${l.id}')">${ico('back')}Back to pledge</button><button class="btn s" onclick="pledgeModal()">${ico('plus')}New Pledge</button></div>
+ shareBuf=txt;return`<div class="btns np" style="margin-bottom:16px">${NATIVE()?`<button class="btn" onclick="shareText(shareBuf)">${ico('copy')}Share</button>`:`<button class="btn" onclick="window.print()">${ico('print')}Print</button>`}${cu.phone?`<a class="btn wa" href="${wa(cu.phone,txt)}" target="_blank" rel="noopener">${ico('chat')}Send on WhatsApp</a>`:''}<button class="btn s" onclick="go('pledge','${l.id}')">${ico('back')}Back to pledge</button><button class="btn s" onclick="pledgeModal()">${ico('plus')}New Pledge</button></div>
  <div class="paper"><div class="tw">${billDoc(arg.k,l,p)}</div></div>`};
 
 /* ---------- settings ---------- */
@@ -447,4 +456,6 @@ function seed(){
 }
 
 /* ---------- start ---------- */
+if(NATIVE()&&CP('App'))CP('App').addListener('backButton',()=>{if($('#modal').classList.contains('open'))return closeModal();if(document.body.classList.contains('menu')){document.body.classList.remove('menu');return}
+  if(document.body.classList.contains('gated')||view==='dash')return CP('App').exitApp();go(view==='doc'&&arg?'pledge':'dash',view==='doc'&&arg?arg.id:undefined)});
 Store.init().then(()=>{if(SECURE()){showGate();return}db=load();let o=false;try{o=sessionStorage.getItem(KEY+'-o')==='1'}catch(_){}if(o)go('dash');else showGate()}).catch(e=>{$('#app').innerHTML='<div class="gate"><div class="gcard"><h1>Pawn Ledger could not start</h1><p class="mu">'+E(e&&e.message||e)+'</p></div></div>'});

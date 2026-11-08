@@ -30,5 +30,14 @@ Settings → **Backup** downloads an encrypted backup file; **Restore** reads it
 ## Never commit / never share
 `PawnLedger-Owner-Codes.html` contains your private owner key. It is **not** in this folder on purpose. Keep it on your own computer + a pen drive.
 
-## Android
-`app/js/store.js` already supports the Android (Capacitor) app with the same activation / admin codes. That is the next step.
+## Android APK (same repo)
+Every upload/commit also runs **Build Android APK** (Actions tab). When it shows a green tick: open the run → **Artifacts** → `PawnLedger-APK` → `PawnLedger-1.0.0.apk`.
+
+Install on the phone: copy the APK to the phone (WhatsApp to yourself / USB / Drive) → tap it → allow "Install unknown apps" if asked.
+
+On the phone it works the same way: the app shows its own **Machine ID** → make the activation code with the Owner Codes tool → paste → choose the password. Owner / Admin → today’s admin code → change password, forgot password, uninstall (erases data; then remove the app icon: press and hold → Uninstall).
+
+Phone differences: no printer – the estimate screen has **Share** (WhatsApp, Gmail, PDF apps…) instead of Print; **Backup** opens the share sheet so you can save the encrypted file to Drive or WhatsApp. The phone back button closes windows / goes back to the Dashboard.
+
+### Signing key – keep it safe
+`android-assets/pawnledger.jks` + `keystore-password.txt` sign every APK. Because the same key is used each time, a new APK installs over the old one and **keeps the data**. Keep the repo **private** and keep a copy of these two files on your pen drive – if they are lost, future updates cannot install over existing installs.

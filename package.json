@@ -2,7 +2,7 @@
   "name": "pawnledger",
   "productName": "Pawn Ledger",
   "version": "1.0.0",
-  "description": "Pawn Ledger – gold & silver pledge loans, interest, cash & bank, repledges and WhatsApp reminders",
+  "description": "Pawn Ledger \u2013 gold & silver pledge loans, interest, cash & bank, repledges and WhatsApp reminders",
   "author": "Pawn Ledger",
   "main": "main.js",
   "private": true,
@@ -18,10 +18,30 @@
     "appId": "com.pawnledger.app",
     "productName": "Pawn Ledger",
     "artifactName": "PawnLedger-Setup-${version}.${ext}",
-    "directories": { "output": "dist", "buildResources": "build" },
-    "files": ["main.js", "preload.js", "app/**/*", "build/icon.png", "package.json"],
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "app/**/*",
+      "build/icon.png",
+      "package.json",
+      "!node_modules/**/*"
+    ],
     "asar": true,
-    "win": { "target": [{ "target": "nsis", "arch": ["x64"] }], "icon": "build/icon.png" },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.png"
+    },
     "nsis": {
       "oneClick": false,
       "perMachine": false,
@@ -32,5 +52,13 @@
       "deleteAppDataOnUninstall": false,
       "include": "build/installer.nsh"
     }
+  },
+  "dependencies": {
+    "@capacitor/android": "6.2.0",
+    "@capacitor/app": "6.0.2",
+    "@capacitor/cli": "6.2.0",
+    "@capacitor/core": "6.2.0",
+    "@capacitor/filesystem": "6.0.3",
+    "@capacitor/share": "6.0.3"
   }
 }
